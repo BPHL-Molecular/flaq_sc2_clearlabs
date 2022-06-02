@@ -12,4 +12,4 @@
 #SBATCH --error=clearlabs_report.%j.err
 
 #Run script/command and use $SLURM_CPUS_ON_NODE
-python clearlabs_report_lineage.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K --pango_path /apps/staphb-toolkit/containers/pangolin_4.0.5-pdata-1.3.sif --pangolin v4.0.5 --pangolin_data v1.3
+python flaq_sc2_clearlabs.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K --pango_path /apps/staphb-toolkit/containers/pangolin_4.0.6-pdata-1.8-constellations-0.1.10.sif --pangolin v4.0.6 --pangolin_data v1.8-constellations-0.1.10
