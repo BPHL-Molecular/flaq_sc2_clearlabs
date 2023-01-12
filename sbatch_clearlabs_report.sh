@@ -11,5 +11,7 @@
 #SBATCH --output=clearlabs_report.%j.out
 #SBATCH --error=clearlabs_report.%j.err
 
+module load apptainer
+
 #Run script/command and use $SLURM_CPUS_ON_NODE
 python flaq_sc2_clearlabs.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K --pango_path /apps/staphb-toolkit/containers/pangolin_4.1.3-pdata-1.17.sif --pangolin v4.1.3 --pangolin_data v1.17
