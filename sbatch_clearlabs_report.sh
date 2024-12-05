@@ -14,4 +14,4 @@
 module load apptainer
 
 #Run script/command and use $SLURM_CPUS_ON_NODE
-python flaq_sc2_clearlabs.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K --pango_path /blue/bphl-florida/share/singularity/pangolin_4.3.1-pdata-1.29.sif --pangolin v4.3.1 --pangolin_data v1.29
+python flaq_sc2_clearlabs.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K --pango_path /blue/bphl-florida/share/singularity/pangolin_4.3.1-pdata-1.31.sif --pangolin v4.3.1 --pangolin_data v1.31
