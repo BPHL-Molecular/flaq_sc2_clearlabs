@@ -13,5 +13,5 @@
 
 module load apptainer
 
-#Run script/command and use $SLURM_CPUS_ON_NODE
-python flaq_sc2_clearlabs.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K --pango_path /blue/bphl-florida/share/singularity/pangolin_4.3.1-pdata-1.31.sif --pangolin v4.3.1 --pangolin_data v1.31
+#Run script/command and use $SLURM_CPUS_ON_NODE. Pangolin-related arguments/parameters are now optional. By default, the pipeline will now pull the latest pangolin and pangolin-data versions, as well as nextclade.
+python flaq_sc2_clearlabs.py --fastqs fastqs/ --assemblies assemblies/ --bams bams/ --threads $SLURM_CPUS_ON_NODE --sotc S:L452R,S:E484K
