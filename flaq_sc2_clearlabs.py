@@ -25,9 +25,9 @@ parser.add_argument('--bams', help='path to clearlabs bams dir')
 parser.add_argument('--assemblies', help='path to clearlabs assemblies dir') 
 parser.add_argument('--threads', default=8, dest='threads', help='specify number of threads, (default: %(default)s)')
 parser.add_argument('--sotc', help='comma separated list of SOTCs to screen (e.g., S:L452R,S:E484K')
-parser.add_argument('--pango_path', help='path to pangolin container')
-parser.add_argument('--pangolin', help='pangolin version (e.g., v2.3)')
-parser.add_argument('--pangolin_data', help='pangolin-data version (e.g., v1.3)')
+parser.add_argument('--pango_path', help='path to pangolin container', required=False)
+parser.add_argument('--pangolin', help='pangolin version (e.g., v2.3)', required=False)
+parser.add_argument('--pangolin_data', help='pangolin-data version (e.g., v1.3)', required=False)
 parser.add_argument('--version', action='version', version='This is flaq_sc2_clearlabs: Version 1.2', help='print version')
 
 if len(sys.argv[1:]) == 0:
@@ -45,15 +45,51 @@ sotc_v = sotc_v.split(',')
 pango_path = args.pango_path
 pango_v = args.pangolin
 pdata = args.pangolin_data
-pangolin = pango_v + '_pdata-' + pdata
 cwd = os.getcwd() + '/'
 
 output_dir = cwd + datetime.date.today().strftime('%Y-%m-%d') + '_clearlabs_lineage_report'
 subprocess.run('mkdir -p ' + output_dir, shell=True, check=True) #make output directory
 subprocess.run('mkdir -p vadr_error_reports_clearlabs', shell=True, check=True) #folder for vadr error report for easier review
 subprocess.run('mkdir -p assemblies_pass', shell=True, check=True) #folder for passing clearlabs assemblies
+if os.path.exists('nextclade_latest.sif'):
+    subprocess.run('rm nextclade_latest.sif', shell=True, check=True)
+subprocess.run('singularity pull nextclade_latest.sif docker://nextstrain/nextclade:latest', shell=True, check=True) #pull latest nextclade container
+subprocess.run('mkdir -p data/nextclade', shell=True, check=True) #create nextclade dataset folder
+subprocess.run('singularity exec nextclade_latest.sif nextclade dataset get --name sars-cov-2 --output-dir data/nextclade', shell=True, check=True) #get latest nextclade dataset
 
-#Get sample names
+# Pull the latest pangolin container if path not provided
+if not args.pango_path:
+    if os.path.exists('pangolin_latest.sif'):
+        subprocess.run('rm pangolin_latest.sif', shell=True, check=True)
+    subprocess.run('singularity pull pangolin_latest.sif docker://staphb/pangolin:latest', shell=True, check=True)
+    # Get the container version info
+    try:
+        proc = subprocess.run('singularity exec pangolin_latest.sif pangolin --all-versions', shell=True, capture_output=True, text=True, check=True)
+        version_info = proc.stdout.strip()
+        # Extract pangolin version
+        pango_match = re.search(r'pangolin: ([\d.]+)', version_info)
+        # Extract pangolin-data version
+        pdata_match = re.search(r'pangolin-data: ([\d.]+)', version_info)
+        if pango_match and pdata_match:
+            pango_v = "v" + pango_match.group(1)
+            pdata = pdata_match.group(1)
+            pangolin = pango_v + '_pdata-' + pdata
+        else:
+            pango_v = "latest"
+            pdata = "latest"
+            pangolin = "latest_auto-pulled"
+    except Exception as e:
+        print(f"Warning: Error extracting pangolin version: {e}")
+        pango_v = "latest"
+        pdata = "latest"
+        pangolin = "latest_auto-pulled"
+    pango_path = "pangolin_latest.sif"
+else:
+    if pango_v is not None and pdata is not None:
+        pangolin = pango_v + '_pdata-' + pdata
+    else:
+        pangolin = "user-specified-container"
+
 samples = []
 
 #Look at some code examples to get fastq names R1, _1 or R1_001 (make work for more sample types later)
@@ -184,7 +220,7 @@ for s in samples:
         subprocess.run('mv lineage_report.csv ' + sample_dir, shell=True, check=True)
 
         #Run nextclade
-        subprocess.run('singularity exec -B $(pwd):/data /apps/staphb-toolkit/containers/nextclade_2021-03-15.sif nextclade --input-fasta ' + sample_dir + s + '.consensus.fa --output-csv ' + sample_dir + 'nextclade_report.csv --jobs ' + threads, shell=True, check=True)
+        subprocess.run('singularity exec -B $(pwd):/data nextclade_latest.sif nextclade run --output-csv ' + sample_dir + 'nextclade_report.csv --jobs ' + threads + ' --input-dataset data/nextclade ' + sample_dir + s + '.consensus.fa', shell=True, check=True)
 
         #Parse nextclade output and screen for sotc
         with open(sample_dir + 'nextclade_report.csv', 'r') as nc:
@@ -213,6 +249,23 @@ report.close()
 #Create multi-fasta file of only passing assemblise
 subprocess.run('cat assemblies_pass/*.fa > assemblies_pass.fasta', shell=True, check=True)
 
-#Run nextclade
-subprocess.run('singularity exec -B $(pwd):/data /apps/staphb-toolkit/containers/nextclade_2021-03-15.sif nextclade --input-fasta assemblies_pass.fasta --output-csv nextclade_report_clearlabs.csv --jobs ' + threads, shell=True, check=True)
+# Get nextclade version
+try:
+    proc = subprocess.run('singularity exec nextclade_latest.sif nextclade --version', shell=True, capture_output=True, text=True, check=True)
+    nextclade_version_output = proc.stdout.strip()
+    version_match = re.search(r'nextclade\s+([\d.]+)', nextclade_version_output)
+    if version_match:
+        nextclade_version = version_match.group(1)
+    else:
+        nextclade_version = "latest"
+except:
+    nextclade_version = "latest"
 
+#Run nextclade
+subprocess.run('singularity exec -B $(pwd):/data nextclade_latest.sif nextclade run --output-tsv nextclade_report_clearlabs.tsv --jobs ' + threads + ' --input-dataset data/nextclade assemblies_pass.fasta', shell=True, check=True)
+
+# Add nextclade version to the report
+if os.path.exists('nextclade_report_clearlabs.tsv'):
+    df = pd.read_csv('nextclade_report_clearlabs.tsv', sep='\t')
+    df.insert(df.columns.get_loc("clade"), "nextclade_version", nextclade_version)
+    df.to_csv('nextclade_report_clearlabs.tsv', sep='\t', index=False)
